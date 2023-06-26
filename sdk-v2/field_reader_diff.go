@@ -287,6 +287,16 @@ func (r *DiffFieldReader) readObjectField(
 		containsComputedValues = containsComputedValues || fieldContainsComputedValues
 	}
 
+	// In the rare case when the schema is an empty object, the default logic would return false here for Exists,
+	// but that triggers !rawResult.Exists check commented as "This should never happen" under readListField. What
+	// actually happens then is that instead of an empty object a nil value is read from the DiffFieldReader. This
+	// is unexpected. Instead, return the empty map and Exists: true in this case.
+	//
+	// See also pulumi/pulumi-aws#1423
+	if len(sch) == 0 {
+		exists = true
+	}
+
 	return schema.FieldReadResult{
 		Value:  result,
 		Exists: exists,
