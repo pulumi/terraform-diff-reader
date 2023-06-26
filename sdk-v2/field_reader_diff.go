@@ -45,6 +45,10 @@ func (r *DiffFieldReader) ReadField(address []string) (schema.FieldReadResult, e
 }
 
 func (r *DiffFieldReader) readField(address []string) (schema.FieldReadResult, bool, error) {
+	return r.readFieldWithOptions(address, false /*mustExist*/)
+}
+
+func (r *DiffFieldReader) readFieldWithOptions(address []string, mustExist bool) (schema.FieldReadResult, bool, error) {
 	schemaList := r.addrToSchema(address, r.Schema)
 	if len(schemaList) == 0 {
 		return schema.FieldReadResult{}, false, nil
@@ -65,7 +69,8 @@ func (r *DiffFieldReader) readField(address []string) (schema.FieldReadResult, b
 	case schema.TypeSet:
 		res, containsComputedValues, err = r.readSet(address, sch)
 	default:
-		res, containsComputedValues, err = r.readObjectField(address, sch.Elem.(map[string]*schema.Schema))
+		sch := sch.Elem.(map[string]*schema.Schema)
+		res, containsComputedValues, err = r.readObjectField(address, sch, mustExist)
 	}
 
 	return res, containsComputedValues, err
@@ -235,7 +240,7 @@ func (r *DiffFieldReader) readListField(
 	for i := range result {
 		is := strconv.FormatInt(int64(i), 10)
 		addrPadded[len(addrPadded)-1] = is
-		rawResult, elementContainsComputedValues, err := r.readField(addrPadded)
+		rawResult, elementContainsComputedValues, err := r.readFieldWithOptions(addrPadded, true /*mustExist*/)
 		if err != nil {
 			return schema.FieldReadResult{}, false, err
 		}
@@ -263,7 +268,7 @@ func (r *DiffFieldReader) readListField(
 // based on the assumption that building an address of []string{k, FIELD}
 // will result in the proper field data.
 func (r *DiffFieldReader) readObjectField(
-	addr []string, sch map[string]*schema.Schema) (schema.FieldReadResult, bool, error) {
+	addr []string, sch map[string]*schema.Schema, mustExist bool) (schema.FieldReadResult, bool, error) {
 
 	result := make(map[string]interface{})
 	containsComputedValues := false
@@ -293,7 +298,7 @@ func (r *DiffFieldReader) readObjectField(
 	// is unexpected. Instead, return the empty map and Exists: true in this case.
 	//
 	// See also pulumi/pulumi-aws#1423
-	if len(sch) == 0 {
+	if len(sch) == 0 && mustExist {
 		exists = true
 	}
 
