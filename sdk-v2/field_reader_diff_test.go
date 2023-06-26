@@ -24,7 +24,6 @@ import (
 )
 
 func TestReadListOfObjectWithoutFields(t *testing.T) {
-	//attrs :=
 	sch := map[string]*schema.Schema{
 		"x": {
 			Type:     schema.TypeList,
